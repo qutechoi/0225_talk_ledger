@@ -8,6 +8,25 @@
 - 결과를 JSON으로 저장/표시
 - 기록 누적 저장(localStorage)로 재입력 시 이어쓰기
 - Excel(.xlsx) 다운로드
+- **월별 시트 분리 엑셀 생성** (`All` + `YYYY-MM` 시트)
+- **카테고리별 차트** (지출 Bar, 수입/지출 Pie)
+- **수동 수정 UI** (잘못 분류된 항목 편집)
+
+## 스크린샷 / 데모 GIF
+아래 경로에 파일을 두면 README에서 바로 보입니다.
+
+- 스크린샷: `docs/screenshot-main.png`
+- 데모 GIF: `docs/demo.gif`
+
+```md
+![앱 스크린샷](docs/screenshot-main.png)
+![데모 GIF](docs/demo.gif)
+```
+
+![앱 스크린샷](docs/screenshot-main.png)
+![데모 GIF](docs/demo.gif)
+
+> 아직 파일이 없다면 먼저 생성해서 `docs/` 폴더에 넣어주세요.
 
 ## 실행
 ```bash
