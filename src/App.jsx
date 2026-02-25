@@ -60,11 +60,15 @@ async function parseWithGemini(text) {
     throw new Error('Gemini 응답 본문이 비어 있습니다.')
   }
 
+  let parsed
   try {
-    return JSON.parse(cleaned)
+    parsed = JSON.parse(cleaned)
   } catch {
     throw new Error(`JSON 파싱 실패 — 원문: ${cleaned.slice(0, 200)}`)
   }
+
+  // 배열로 정규화 (모델이 단일 객체를 반환하는 경우 대비)
+  return Array.isArray(parsed) ? parsed : [parsed]
 }
 
 const toNumber = (v) => {
@@ -134,14 +138,15 @@ function App() {
     setError('')
 
     try {
-      const parsed = await parseWithGemini(input.trim())
-      const record = {
+      const items = await parseWithGemini(input.trim())
+      const now = new Date().toISOString()
+      const records = items.map((item) => ({
         id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
+        createdAt: now,
         originalText: input.trim(),
-        ...parsed,
-      }
-      persist([record, ...entries])
+        ...item,
+      }))
+      persist([...records, ...entries])
       setInput('')
     } catch (e) {
       setError(e.message || '분석 중 오류가 발생했습니다.')
