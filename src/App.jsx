@@ -40,8 +40,31 @@ async function parseWithGemini(text) {
   }
 
   const data = await res.json()
-  const modelText = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') || '{}'
-  return JSON.parse(modelText)
+
+  // 응답 바디 자체에 에러가 있는 경우 (HTTP 200이지만 에러 페이로드)
+  if (data.error) {
+    throw new Error(`Gemini 오류: ${data.error.message || JSON.stringify(data.error)}`)
+  }
+
+  const candidate = data?.candidates?.[0]
+  if (!candidate) {
+    throw new Error('Gemini 응답에 후보가 없습니다. (안전 필터 또는 빈 응답)')
+  }
+
+  const raw = candidate?.content?.parts?.map((p) => p.text ?? '').join('') ?? ''
+
+  // responseMimeType: 'application/json' 설정에도 간혹 마크다운 코드 블록으로 감싸는 경우 대응
+  const cleaned = raw.trim().replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '')
+
+  if (!cleaned) {
+    throw new Error('Gemini 응답 본문이 비어 있습니다.')
+  }
+
+  try {
+    return JSON.parse(cleaned)
+  } catch {
+    throw new Error(`JSON 파싱 실패 — 원문: ${cleaned.slice(0, 200)}`)
+  }
 }
 
 const toNumber = (v) => {
@@ -65,8 +88,12 @@ function App() {
   const [showExcelPreview, setShowExcelPreview] = useState(false)
 
   const persist = (next) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+    } catch (e) {
+      console.error('localStorage 저장 실패:', e)
+    }
     setEntries(next)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
   }
 
   const totals = useMemo(() => {
