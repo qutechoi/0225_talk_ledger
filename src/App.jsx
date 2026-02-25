@@ -27,6 +27,28 @@ const initialEntries = (() => {
   }
 })()
 
+// JSON 추출 다중 전략: 직접 파싱 → 코드 블록 제거 → 배열 정규식 → 객체 정규식
+function tryExtractJSON(raw) {
+  const s = raw.trim()
+
+  // 전략 1: 직접 파싱 (responseMimeType: 'application/json' 정상 동작 시)
+  try { return JSON.parse(s) } catch {}
+
+  // 전략 2: 마크다운 코드 블록 제거 후 파싱
+  const stripped = s.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+  try { return JSON.parse(stripped) } catch {}
+
+  // 전략 3: 텍스트 안에서 JSON 배열 [...] 추출
+  const arrMatch = s.match(/\[[\s\S]*\]/)
+  if (arrMatch) try { return JSON.parse(arrMatch[0]) } catch {}
+
+  // 전략 4: 텍스트 안에서 JSON 객체 {...} 추출
+  const objMatch = s.match(/\{[\s\S]*\}/)
+  if (objMatch) try { return JSON.parse(objMatch[0]) } catch {}
+
+  return null
+}
+
 async function parseWithGemini(text) {
   const res = await fetch('/api/gemini', {
     method: 'POST',
@@ -41,7 +63,6 @@ async function parseWithGemini(text) {
 
   const data = await res.json()
 
-  // 응답 바디 자체에 에러가 있는 경우 (HTTP 200이지만 에러 페이로드)
   if (data.error) {
     throw new Error(`Gemini 오류: ${data.error.message || JSON.stringify(data.error)}`)
   }
@@ -52,26 +73,24 @@ async function parseWithGemini(text) {
   }
 
   const raw = candidate?.content?.parts?.map((p) => p.text ?? '').join('') ?? ''
+  console.log('[Gemini raw]', raw)
 
-  // responseMimeType: 'application/json' 설정에도 간혹 마크다운 코드 블록으로 감싸는 경우 대응
-  const cleaned = raw.trim().replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '')
-
-  if (!cleaned) {
+  if (!raw.trim()) {
     throw new Error('Gemini 응답 본문이 비어 있습니다.')
   }
 
-  let parsed
-  try {
-    parsed = JSON.parse(cleaned)
-  } catch {
-    throw new Error(`JSON 파싱 실패 — 원문: ${cleaned.slice(0, 200)}`)
+  const result = tryExtractJSON(raw)
+  if (result === null) {
+    throw new Error(`JSON 추출 실패 — 응답 원문: ${raw.slice(0, 300)}`)
   }
 
   // 배열로 정규화 (모델이 단일 객체를 반환하는 경우 대비)
-  return Array.isArray(parsed) ? parsed : [parsed]
+  return Array.isArray(result) ? result : [result]
 }
 
+// null/undefined/빈 문자열은 null 반환, 문자열 숫자는 변환
 const toNumber = (v) => {
+  if (v === null || v === undefined || v === '') return null
   const n = Number(v)
   return Number.isFinite(n) ? n : null
 }
@@ -139,13 +158,17 @@ function App() {
 
     try {
       const items = await parseWithGemini(input.trim())
+      console.log('[handleAnalyze] parsed items:', items)
       const now = new Date().toISOString()
       const records = items.map((item) => ({
         id: crypto.randomUUID(),
         createdAt: now,
         originalText: input.trim(),
         ...item,
+        // Gemini가 문자열로 반환할 수 있으므로 항상 숫자로 정규화
+        amount: toNumber(item.amount),
       }))
+      console.log('[handleAnalyze] records to save:', records)
       persist([...records, ...entries])
       setInput('')
     } catch (e) {

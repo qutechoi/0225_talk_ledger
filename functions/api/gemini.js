@@ -130,7 +130,15 @@ export async function onRequestPost(context) {
     },
   )
 
-  const data = await geminiRes.json()
+  let data
+  try {
+    data = await geminiRes.json()
+  } catch {
+    return new Response(JSON.stringify({ error: 'Gemini 응답을 JSON으로 파싱할 수 없습니다.' }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+    })
+  }
   return new Response(JSON.stringify(data), {
     status: geminiRes.status,
     headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },

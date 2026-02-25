@@ -145,7 +145,14 @@ export default defineConfig(({ mode }) => {
               },
             )
 
-            const data = await geminiRes.json()
+            let data
+            try {
+              data = await geminiRes.json()
+            } catch {
+              res.writeHead(502, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ error: 'Gemini 응답을 JSON으로 파싱할 수 없습니다.' }))
+              return
+            }
             res.writeHead(geminiRes.status, { 'Content-Type': 'application/json' })
             res.end(JSON.stringify(data))
           })
