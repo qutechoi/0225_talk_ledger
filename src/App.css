@@ -62,6 +62,10 @@ button.secondary {
   background: #4b5563;
 }
 
+button.danger {
+  background: #dc2626;
+}
+
 button.small {
   font-size: 12px;
   padding: 6px 10px;

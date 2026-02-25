@@ -179,6 +179,11 @@ function App() {
     })
   }
 
+  const handleReset = () => {
+    if (!window.confirm('모든 기록을 삭제할까요? 이 작업은 되돌릴 수 없습니다.')) return
+    persist([])
+  }
+
   const saveEdit = () => {
     const next = entries.map((e) => {
       if (e.id !== editingId) return e
@@ -229,6 +234,9 @@ function App() {
           </button>
           <button className="secondary" onClick={() => setShowExcelPreview(true)} disabled={entries.length === 0}>
             엑셀 다운로드(월별 시트 포함)
+          </button>
+          <button className="danger" onClick={handleReset} disabled={entries.length === 0}>
+            초기화
           </button>
         </div>
         {error && <p className="error">{error}</p>}
