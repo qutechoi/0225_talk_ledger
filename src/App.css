@@ -180,3 +180,63 @@ label.full {
     grid-template-columns: 1fr;
   }
 }
+
+/* 엑셀 미리보기 모달 */
+.modal.preview {
+  width: min(1100px, 100%);
+}
+
+.preview-table-wrap {
+  max-height: 50vh;
+  overflow-y: auto;
+  margin: 12px 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.preview-table th {
+  background: #f3f4f6;
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+}
+
+.preview-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.preview-table tr:last-child td {
+  border-bottom: none;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge.income {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge.expense {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.badge.unknown {
+  background: #f3f4f6;
+  color: #6b7280;
+}

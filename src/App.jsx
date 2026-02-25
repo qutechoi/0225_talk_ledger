@@ -27,47 +27,17 @@ const initialEntries = (() => {
   }
 })()
 
-const systemPrompt = `너는 한국어 가계부 분류기다. 사용자의 자유문장 1개를 분석해서 반드시 JSON만 출력해라.
-스키마:
-{
-  "type": "income" | "expense" | "unknown",
-  "amount": number | null,
-  "currency": "KRW" | "USD" | "UNKNOWN",
-  "category": string,
-  "merchant": string,
-  "date": "YYYY-MM-DD" | null,
-  "memo": string,
-  "confidence": number,
-  "factors": {
-    "keywords": string[],
-    "payment_method": string,
-    "participants": string[]
-  }
-}
-규칙:
-- JSON 외 텍스트 금지
-- 확실하지 않으면 unknown/null 사용
-- confidence는 0~1
-- category는 짧은 한국어 라벨`
-
 async function parseWithGemini(text) {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-  if (!apiKey) throw new Error('VITE_GEMINI_API_KEY가 필요합니다. .env에 설정해주세요.')
+  const res = await fetch('/api/gemini', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text }] }],
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: { responseMimeType: 'application/json' },
-      }),
-    },
-  )
-
-  if (!res.ok) throw new Error(`Gemini API 오류: ${await res.text()}`)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(`Gemini API 오류: ${err.error || res.statusText}`)
+  }
 
   const data = await res.json()
   const modelText = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') || '{}'
@@ -92,6 +62,7 @@ function App() {
   const [error, setError] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editDraft, setEditDraft] = useState(null)
+  const [showExcelPreview, setShowExcelPreview] = useState(false)
 
   const persist = (next) => {
     setEntries(next)
@@ -256,7 +227,7 @@ function App() {
           <button onClick={handleAnalyze} disabled={loading}>
             {loading ? '분석 중...' : '입력 추가'}
           </button>
-          <button className="secondary" onClick={handleDownloadExcel} disabled={entries.length === 0}>
+          <button className="secondary" onClick={() => setShowExcelPreview(true)} disabled={entries.length === 0}>
             엑셀 다운로드(월별 시트 포함)
           </button>
         </div>
@@ -327,6 +298,54 @@ function App() {
           ))}
         </ul>
       </section>
+
+      {showExcelPreview && (
+        <div className="modal-backdrop">
+          <div className="modal preview">
+            <h3>엑셀 미리보기 ({entries.length}건)</h3>
+            <div className="preview-table-wrap">
+              <table className="preview-table">
+                <thead>
+                  <tr>
+                    <th>날짜</th>
+                    <th>유형</th>
+                    <th>금액</th>
+                    <th>통화</th>
+                    <th>카테고리</th>
+                    <th>상점</th>
+                    <th>결제수단</th>
+                    <th>메모</th>
+                    <th>신뢰도</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.map((e) => {
+                    const typeLabel = e.type === 'income' ? '수입' : e.type === 'expense' ? '지출' : '미분류'
+                    const typeClass = e.type === 'income' ? 'income' : e.type === 'expense' ? 'expense' : 'unknown'
+                    return (
+                      <tr key={e.id}>
+                        <td>{e.date || e.createdAt?.slice(0, 10) || '-'}</td>
+                        <td><span className={`badge ${typeClass}`}>{typeLabel}</span></td>
+                        <td>{e.amount != null ? e.amount.toLocaleString() : '-'}</td>
+                        <td>{e.currency || '-'}</td>
+                        <td>{e.category || '-'}</td>
+                        <td>{e.merchant || '-'}</td>
+                        <td>{e.factors?.payment_method || '-'}</td>
+                        <td>{e.memo || '-'}</td>
+                        <td>{e.confidence != null ? e.confidence : '-'}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="actions">
+              <button onClick={() => { handleDownloadExcel(); setShowExcelPreview(false) }}>다운로드</button>
+              <button className="secondary" onClick={() => setShowExcelPreview(false)}>닫기</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingId && editDraft && (
         <div className="modal-backdrop">
